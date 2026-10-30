@@ -1,11 +1,10 @@
-SQL> 
-SQL> SELECT DBMS_METADATA.GET_DDL(
-  2      'PROCEDURE',
-  3      'SP_STOCK_MOVEMENT'
-  4  )
-  5  FROM DUAL;
+-- =========================================
+-- FACTORY ERP SUPPORT SYSTEM
+-- STOCK MOVEMENT PROCEDURE
+-- Oracle Database
+-- =========================================
 
-  CREATE OR REPLACE EDITIONABLE PROCEDURE "SP_STOCK_MOVEMENT" (
+CREATE OR REPLACE PROCEDURE SP_STOCK_MOVEMENT (
     P_MATERIAL_ID   IN NUMBER,
     P_WAREHOUSE_ID  IN NUMBER,
     P_TYPE          IN VARCHAR2,
@@ -16,15 +15,28 @@ SQL> SELECT DBMS_METADATA.GET_DDL(
 AS
     V_CURRENT_QTY NUMBER(12,2);
     V_NEW_QTY     NUMBER(12,2);
+    V_TYPE        VARCHAR2(3);
 BEGIN
-    IF P_TYPE NOT IN ('IN', 'OUT') THEN
-        RAISE_APPLICATION_ERROR(-20001, 'Type must be IN or OUT');
+    -- 1. Normalize transaction type
+    V_TYPE := UPPER(TRIM(P_TYPE));
+
+    -- 2. Validate transaction type
+    IF V_TYPE IS NULL OR V_TYPE NOT IN ('IN', 'OUT') THEN
+        RAISE_APPLICATION_ERROR(
+            -20001,
+            'Transaction type must be IN or OUT'
+        );
     END IF;
 
+    -- 3. Validate quantity
     IF P_QUANTITY IS NULL OR P_QUANTITY <= 0 THEN
-        RAISE_APPLICATION_ERROR(-20002, 'Quantity must be greater than 0');
+        RAISE_APPLICATION_ERROR(
+            -20002,
+            'Quantity must be greater than 0'
+        );
     END IF;
 
+    -- 4. Lock current stock balance
     SELECT QUANTITY
     INTO V_CURRENT_QTY
     FROM STOCK_BALANCES
@@ -32,21 +44,31 @@ BEGIN
       AND WAREHOUSE_ID = P_WAREHOUSE_ID
     FOR UPDATE;
 
-    IF P_TYPE = 'IN' THEN
+    -- 5. Calculate new stock balance
+    IF V_TYPE = 'IN' THEN
+
         V_NEW_QTY := V_CURRENT_QTY + P_QUANTITY;
+
     ELSE
+
         IF V_CURRENT_QTY < P_QUANTITY THEN
-            RAISE_APPLICATION_ERROR(-20003, 'Insufficient stock');
+            RAISE_APPLICATION_ERROR(
+                -20003,
+                'Insufficient stock'
+            );
         END IF;
 
         V_NEW_QTY := V_CURRENT_QTY - P_QUANTITY;
+
     END IF;
 
+    -- 6. Update stock balance
     UPDATE STOCK_BALANCES
     SET QUANTITY = V_NEW_QTY
     WHERE MATERIAL_ID = P_MATERIAL_ID
       AND WAREHOUSE_ID = P_WAREHOUSE_ID;
 
+    -- 7. Record stock transaction
     INSERT INTO STOCK_TRANSACTIONS (
         MATERIAL_ID,
         WAREHOUSE_ID,
@@ -58,7 +80,7 @@ BEGIN
     VALUES (
         P_MATERIAL_ID,
         P_WAREHOUSE_ID,
-        P_TYPE,
+        V_TYPE,
         P_QUANTITY,
         P_REFERENCE_NO,
         P_NOTE
@@ -72,6 +94,3 @@ EXCEPTION
         );
 END;
 /
-
-SQL> 
-SQL> SPOOL OFF
