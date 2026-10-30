@@ -8,6 +8,14 @@ A desktop application developed to support basic material and warehouse inventor
 Mini Factory ERP Support System is a personal learning project that simulates basic inventory operations in a manufacturing environment.
 
 The application supports material management, stock-in and stock-out transactions, current stock tracking, and transaction history.
+### Application Screenshots
+
+#### Material Management
+
+![Material Management](screenshots/material-management.PNG)
+#### Stock In / Stock Out
+
+![Stock Movement](screenshots/stock-movement.PNG)
 
 ## 2. Features
 
